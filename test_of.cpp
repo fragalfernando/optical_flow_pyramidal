@@ -42,11 +42,6 @@ using namespace std;
 int total_images = 205;
 int keypoints = 18;
 
-/* Frame dimensions and scale alpha */
-int frame_height = 0;
-int frame_width = 0;
-float alpha = 40.0;
-
 /* Image and coordinates directory */
 string test_dir = "./data/";
 string output_dir = "./output/";
@@ -55,10 +50,6 @@ string coordinates_fname = "output.log";
 
 const char *coordinate_file = "./data/output.log";
 const int op_pixel_threshold = 10; 
-
-/* Pixel percentiles */
-const float pixel_percentiles[] = {3,6,9,12,99999};
-const int percentiles_length = 5;
 
 
 char compute_lk(vector<float> &ix, vector<float> &iy,
@@ -100,10 +91,14 @@ void get_vectors(vector< vector<float> > &patch, vector< vector<float> > &patch_
     for (int i = 1; i <= patch_size; i++)
         for (int j = 1; j <= patch_size; j++)
         {
-            it.push_back(patch_it[i][j]);
             ix.push_back((patch[i][j+1] - patch[i][j-1])/2.0);
             iy.push_back((patch[i+1][j] - patch[i-1][j])/2.0);
         }
+
+    for (int i = 0; i < patch_size; i++)
+        for (int j = 0; j < patch_size; j++)
+            it.push_back(patch_it[i][j]);
+
 }
 
 char extract_patch(int x, int y, int patch_size,
@@ -111,17 +106,165 @@ char extract_patch(int x, int y, int patch_size,
 {
     int radix = patch_size / 2;
 
-    if ( ((x - (radix + 1)) < 0) ||
-         ((x + (radix + 1)) >= image.cols) ||
-         ((y - (radix + 1)) < 0) ||
-         ((y + (radix + 1)) >= image.rows))
+    if ( ((x - radix) < 0) ||
+         ((x + radix) >= image.cols) ||
+         ((y - radix) < 0) ||
+         ((y + radix) >= image.rows))
         return OUT_OF_FRAME;
 
-    for (int i = -radix-1; i <= radix+1; i++)
-        for (int j = -radix-1; j <= radix+1; j++)
-            patch[i+radix+1][j+radix+1] = image.at<float>(y+i,x+j);
+    for (int i = -radix; i <= radix; i++)
+        for (int j = -radix; j <= radix; j++)
+            patch[i+radix][j+radix] = image.at<float>(y+i,x+j);
 
     return SUCCESS;
+
+}
+
+char extract_it_patch(int x_I, int y_I, int x_J, int y_J, Mat &I, Mat &J, 
+                      int patch_size, vector< vector<float> > &patch)
+{
+
+    int radix = patch_size / 2;
+
+    if (((x_I - radix) < 0) ||
+         ((x_I + radix) >= I.cols) ||
+         ((y_I - radix) < 0) ||
+         ((y_I + radix) >= I.rows))
+        return OUT_OF_FRAME;
+
+    if (((x_J - radix) < 0) ||
+         ((x_J + radix) >= J.cols) ||
+         ((y_J - radix) < 0) ||
+         ((y_J + radix) >= J.rows))
+        return OUT_OF_FRAME;
+
+    for (int i = -radix; i <= radix; i++)
+        for (int j = -radix; j <= radix; j++)
+            patch[i+radix][j+radix] = J.at<float>(y_J+i,x_J+j) - I.at<float>(y_I+i,x_I+j);
+
+    return SUCCESS;
+
+}
+/* Given an OpenCV image 'img', build a gaussian pyramid of size 'levels' */
+void build_gaussian_pyramid(Mat &img, int levels, vector<Mat> &pyramid)
+{
+    pyramid.clear();
+
+    pyramid.push_back(img);
+
+    for(int i = 0; i < levels - 1; i++)
+    {
+        Mat tmp;
+        pyrDown(pyramid[pyramid.size() - 1], tmp);
+        pyramid.push_back(tmp);
+    }
+}
+
+
+
+Point2f pyramid_iteration(Point2f ipoint, Point2f jpoint, Mat &I, Mat &J,
+                          char &status, int patch_size = 5)
+{
+
+    Point2f result;
+
+   /* Extract a patch around the image */
+    vector< vector<float> > patch(patch_size + 2,
+                                vector<float>(patch_size + 2));
+    vector< vector<float> > patch_it(patch_size,
+                                vector<float>(patch_size));
+
+    status = extract_patch((int)ipoint.x,(int)ipoint.y,
+                           patch_size + 2, I, patch);
+    if (status)
+        return result;
+
+    status = extract_it_patch(ipoint.x, ipoint.y, jpoint.x, jpoint.y, I, J,
+                              patch_size, patch_it);
+ 
+    if (status)
+        return result;                         
+
+    /* Get the Ix, Iy and It vectors */
+    vector<float> ix, iy, it;
+    get_vectors(patch, patch_it, patch_size, ix, iy, it);
+
+    /* Calculate optical flow */
+    pair<float,float> delta;
+    status = compute_lk(ix, iy, it, delta);
+    
+    if (status)
+        return result;
+    
+    result.x = jpoint.x + delta.first;
+    result.y = jpoint.y + delta.second;
+
+    return result; 
+}  
+
+void reescale_cords(vector<Point2f> &coords, float scale)
+{
+    for (int i = 0; i < coords.size(); i++)
+    {
+        coords[i].x =  scale * coords[i].x;
+        coords[i].y =  scale * coords[i].y;
+    }
+} 
+
+
+void reescale_cord(Point2f &coord, float scale)
+{
+    coord.x =  scale * coord.x;
+    coord.y =  scale * coord.y;
+}
+
+void run_LKPyramidal(vector<Point2f> &coord_I,
+                     vector<Point2f> &coord_J,
+                     Mat &prev,
+                     Mat &next,
+                     vector<char> &status,
+                     int levels,
+                     int patch_size = 5)
+{
+    /* Empty coordinates */
+    if (coord_I.size() == 0)
+        return;
+
+    vector<Point2f> I;
+    I.assign(coord_I.begin(), coord_I.end());
+
+    reescale_cords(I,1.0/(float)(1<<(levels-1)));
+    
+    coord_J.clear();
+    coord_J.assign(I.begin(), I.end());
+
+    vector<Mat> I_pyr;
+    vector<Mat> J_pyr;
+
+    build_gaussian_pyramid(prev, levels, I_pyr);
+    build_gaussian_pyramid(next, levels, J_pyr);
+
+    
+    /* Process all pixel requests */
+    for (int i = 0; i < coord_I.size(); i++)
+    {
+        for (int l = levels - 1; l >= 0; l--)
+        {
+             char status_point = 0;
+             Point2f result;
+
+             result = pyramid_iteration(I[i], coord_J[i],I_pyr[l], J_pyr[l],
+                              status_point, patch_size);
+             if (status_point) {status[i] = status_point; break;}
+
+             coord_J[i] = result;
+            
+             if (l == 0) break;
+
+             reescale_cord(I[i],2.0);
+             reescale_cord(coord_J[i],2.0);
+        }
+    }
 
 }
 
@@ -180,13 +323,12 @@ void get_opt_flow(vector<Point2f> &coord_in,
 
 }
 
-void drawKeyPoints(Mat image,vector<int> x, vector<int> y,std::string output_file){
+void drawKeyPoints(Mat image,vector<int> x, vector<int> y, std::string output_file){
 
     Mat target;
     cv::cvtColor(image, target, CV_GRAY2BGR);
 
-    for(int i=0; i< x.size() ; i++)
-    {
+    for(int i=0;i<x.size();i++){
         if (!x[i] && !y[i]) continue;
 
         Point center = Point(x[i], y[i]);
@@ -197,7 +339,7 @@ void drawKeyPoints(Mat image,vector<int> x, vector<int> y,std::string output_fil
     imwrite(output_file, target);
 }
 
-void draw_both(Mat image, vector<int>x, vector<int> y,vector<Point2f> &of, std::string output_file){
+void draw_both(Mat image, vector<int>x, vector<int> y, vector<Point2f> &of, std::string output_file){
 
     Mat target;
     cv::cvtColor(image, target, CV_GRAY2BGR);
@@ -241,9 +383,9 @@ void draw_all(Mat image, vector<int> x, vector<int> y, vector<Point2f> &of, vect
 }
 
 
-void points2crd(vector<int> x, vector<int> y,vector<Point2f> &output_crd){
+void points2crd(vector<int> x, vector<int> y, vector<Point2f> &output_crd){
 
-    for(int i=0;i<x.size();i++)
+    for(int i=0;i< x.size() ;i++)
     {
         if (!x[i] && !y[i]) continue;
 
@@ -253,7 +395,7 @@ void points2crd(vector<int> x, vector<int> y,vector<Point2f> &output_crd){
 
 }
 
-void crd2points(vector<float> &x, vector<float> &y,vector<Point2f> &input_crd)
+void crd2points(vector<float> &x, vector<float> &y, vector<Point2f> &input_crd)
 {
     x.clear();
     y.clear();
@@ -265,7 +407,7 @@ void crd2points(vector<float> &x, vector<float> &y,vector<Point2f> &input_crd)
     }
 }
 
-pair<int,int> find_closest(vector<int> &x_of, vector<int> &y_of, int x, int y, float pixel_threshold)
+pair<int,int> find_closest(vector<int> &x_of, vector<int> &y_of, int x, int y)
 {
     float min_dist = (float) (INT_MAX);
     int best_x = -1, best_y = -1;
@@ -282,7 +424,7 @@ pair<int,int> find_closest(vector<int> &x_of, vector<int> &y_of, int x, int y, f
         }    
     }
     
-    if (sqrt(min_dist) >= pixel_threshold)
+    if (min_dist >= op_pixel_threshold)
         return make_pair(-1,-1);
     
     return make_pair(best_x,best_y);
@@ -290,8 +432,7 @@ pair<int,int> find_closest(vector<int> &x_of, vector<int> &y_of, int x, int y, f
 
 
 void interpolate_next(vector<int> &x_prev, vector<int> &y_prev, 
-                      vector<int> &x_of, vector<int> &y_of,
-                      vector<float> &dist_threshold)
+                      vector<int> &x_of, vector<int> &y_of)
 {
 
     for (int i = 0; i < x_prev.size(); i++)
@@ -299,7 +440,7 @@ void interpolate_next(vector<int> &x_prev, vector<int> &y_prev,
         if (x_prev[i] == -1)
             continue;
 
-        pair<int,int> new_cord = find_closest(x_of,y_of,x_prev[i],y_prev[i],dist_threshold[i]);
+        pair<int,int> new_cord = find_closest(x_of,y_of,x_prev[i],y_prev[i]);
         x_prev[i] = new_cord.first;
         y_prev[i] = new_cord.second;
     }
@@ -308,15 +449,12 @@ void interpolate_next(vector<int> &x_prev, vector<int> &y_prev,
 void get_statistics(vector<int> &x_itp, vector<int> &y_itp,
                     vector<float> &x_of, vector<float> &y_of,
                     vector<float> &maxim, vector<float> &mean,
-                    vector<float> &minim, vector<float> &median,
-                    vector<float> &percentiles)
+                    vector<float> &minim, vector<float> &median)
 {
 
     vector<float> distances;
     float dist = 0.0, total = 0.0;
     int n = x_itp.size();
-
-    std::fill(percentiles.begin(),percentiles.end(),0);
 
     for (int i = 0; i < x_itp.size(); i++)
     {
@@ -325,26 +463,8 @@ void get_statistics(vector<int> &x_itp, vector<int> &y_itp,
         
         dist = (float) (((float)x_itp[i]-x_of[i])*((float)x_itp[i]-x_of[i]) + ((float)y_itp[i]-y_of[i])*((float)y_itp[i]-y_of[i]));        
         dist = sqrt(dist);
-        
-        for (int k = 0; k < percentiles_length; k++)
-        {
-             if (dist <= pixel_percentiles[k])
-             {
-                percentiles[k] = percentiles[k] + 1;
-                break;
-             } 
-        }
-
         distances.push_back(dist);         
     }
-    float found_sum = 0.0;
-
-    for (int k = 0; k < percentiles.size(); k++)
-       found_sum += percentiles[k];
-
-    for (int k = 0; k < percentiles.size(); k++)
-        percentiles[k] = (percentiles[k] / (found_sum + 0.00001)) * 100.0;
- 
     if (!distances.size()) return;
 
     std::sort(distances.begin(),distances.end());
@@ -360,6 +480,11 @@ void get_statistics(vector<int> &x_itp, vector<int> &y_itp,
      
 }
 
+void swap_xy(vector<Point2f> &cords)
+{
+    for (int i = 0; i < cords.size(); i++)
+        std::swap(cords[i].x,cords[i].y);
+}
 int main(int argc, char ** argv) 
 {
 
@@ -367,8 +492,7 @@ int main(int argc, char ** argv)
     char *video_path = NULL, *out_file = NULL;
     bool verbose = false;
     int option = 0;
-    vector<float> percentiles(5,0);
-
+ 
     while ((option = getopt(argc, argv,"s:e:f:o:v")) != -1) 
     {
         switch (option) {
@@ -392,12 +516,12 @@ int main(int argc, char ** argv)
     if (!video_path) {cout<<"Specify a video path!"<<endl; return 0;}
     if (!out_file) {cout<<"Specify results path!"<<endl; return 0;}
 
-     cout<<"START "<<first_frame<<" END "<<last_frame<<" video path "<<video_path<<" OUT_FILE "<<out_file<<endl;
+    /* cout<<"START "<<first_frame<<" END "<<last_frame<<" video path "<<video_path<<" OUT_FILE "<<out_file<<endl;*/
 
     Mat input, input_float;
     
     freopen(video_path,"r",stdin);
-    Mat prev, current, fprev, fcurrent;
+    Mat prev, current, fprev, fcurrent, dcurrent, dprev;
     vector<Point2f> tracking_points[2];
     vector<Point2f> custom_points[2];
 
@@ -408,7 +532,6 @@ int main(int argc, char ** argv)
     vector<float> minim, maxim, mean, median;
     vector<int> x_itp, y_itp;
     vector<float> x_of, y_of;
-    vector<float> dist_threshold;
 
     float fx, fy, conf;
 
@@ -435,13 +558,6 @@ int main(int argc, char ** argv)
         string img = test_dir + number + format_img; 
         string output_image = output_dir + number + format_img;        
         input = cv::imread(img, CV_LOAD_IMAGE_GRAYSCALE);                                      
-
-        if (i == 1)
-        {
-            frame_height = input.rows;
-            frame_width = input.cols;
-        }
-
         input.convertTo(input_float, CV_32F);
         //input_float *= (1/255.00);
 
@@ -452,49 +568,25 @@ int main(int argc, char ** argv)
 
         for (int p = 0; p < persons; p++)
         {
-            int valid_kp = 0;
-            int lx = INT_MAX, rx = 0, ty = INT_MAX, by = 0;
-
 	    /* Add all keypoints */
 	    for (int k = 0; k < keypoints; k++)
 	    {	      	    
-                cin>>fx>>fy>>conf;
+	        cin>>fx>>fy>>conf;
                 if (conf < 0.01)
-	            continue;
-                
-                valid_kp++;
+	            continue;	
                 x_truth.push_back((int)fx);
                 y_truth.push_back((int)fy);
-
-                if (i == first_frame)
-                {
-                    lx = min(lx,(int)fx);
-                    rx = max(rx,(int)fx);
-                    ty = min(ty,(int)fy);
-                    by = max(by,(int)fy);
-                }
-            }
-
-            if (i == first_frame) 
-            {
-                for (int vkp = 0; vkp < valid_kp; vkp++)
-                {
-                    float max_p = (float) max(rx-lx,by-ty);
-                    float max_f = (float) max(frame_height,frame_width);
-                    //cout<<"TEST: "<<max_p<<" "<<max_f<<endl; 
-                    dist_threshold.push_back(alpha * (max_p/max_f));
-                    //cout<<dist_threshold.back()<<endl;
-                }
             }
 	}
-
         /* Set tracking points */
         if (i == first_frame)
         {
             fcurrent = input_float.clone();
             current = input;
-            points2crd(x_truth, y_truth,tracking_points[1]);
-            points2crd(x_truth, y_truth,custom_points[1]);
+            std::cout<<"COLS "<<fcurrent.cols<<"  ROWS: "<<fcurrent.rows<<endl;
+            cv::pyrDown(fcurrent, dcurrent);
+            points2crd(x_truth, y_truth, tracking_points[1]);
+            points2crd(x_truth, y_truth, custom_points[1]);
             custom_points[0].resize(custom_points[1].size());
             x_itp.assign(x_truth.begin(), x_truth.end());
             y_itp.assign(y_truth.begin(), y_truth.end());
@@ -514,40 +606,34 @@ int main(int argc, char ** argv)
             cv::swap(current, prev);
 
             fcurrent = input_float.clone();
+            pyrDown(fcurrent, dcurrent);
             current = input;
-            interpolate_next(x_itp, y_itp,x_truth, y_truth,dist_threshold);
+            interpolate_next(x_itp, y_itp,x_truth, y_truth);
 
             calcOpticalFlowPyrLK(prev, current, tracking_points[0], tracking_points[1], 
                                  status, err, winSize, 5, termcrit, 0, 0.001);
             
-            crd2points(x_of, y_of, tracking_points[1]);                        
-            get_statistics(x_itp, y_itp, x_of, y_of, maxim, mean,minim,median,percentiles);
+            //crd2points(x_of, y_of, tracking_points[1].size(),tracking_points[1]);                        
+            //get_statistics(x_itp, y_itp, x_of, y_of, maxim, mean,minim,median);
             
-            if (verbose)
-            {
-                cout<<"MAXIMUM: "<<maxim.back()<<",  MINIMUM: "<<minim.back()<<", MEAN: "<<mean.back()<<", MEDIAN: "<<median.back()<<endl;   
-                
-                for (int k = 0; k < percentiles.size(); k++)
-                    cout<<"Less than "<<pixel_percentiles[k]<<" pixels of error: "<<percentiles[k]<<"%"<<endl;
-            }
-            get_opt_flow(custom_points[0],custom_points[1],fprev, fcurrent, mystatus, 51);
+            //if (verbose)
+            //    cout<<"MAXIMUM: "<<maxim.back()<<",  MINIMUM: "<<minim.back()<<", MEAN: "<<mean.back()<<", MEDIAN: "<<median.back()<<endl;   
+
+            run_LKPyramidal(custom_points[0], custom_points[1], fprev, fcurrent, mystatus,3, 21);
+            //get_opt_flow(custom_points[0],custom_points[1],fprev, fcurrent, mystatus, 21);
+            //swap_xy(custom_points[1]);
             draw_all(input_float,x_truth,y_truth,tracking_points[1],custom_points[1], output_image);
+            //swap_xy(custom_points[1]);
+
+            //imwrite(output_dir + number + "_down" + format_img, dcurrent);
+            
+            //draw_both(dcurrent,x_truth,y_truth,keypoints * persons,custom_points[1], "down_" + output_image);
+
         }     
         else    
-            drawKeyPoints(input_float, x_truth, y_truth, output_image);
+            drawKeyPoints(input_float, x_truth, y_truth,output_image);
     }
     
-    freopen(out_file,"w+",stdout);
-    int sz = maxim.size();
-    cout<<sz<<endl;
-    /* Dump keypoints */
-    for (int i = 0; i < sz; i++)
-    {
-        cout<<minim[i]<<endl;
-        cout<<median[i]<<endl;
-        cout<<maxim[i]<<endl;
-        cout<<mean[i]<<endl;
-    } 
     return 0;
 
 }
