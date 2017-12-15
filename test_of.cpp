@@ -35,6 +35,10 @@
 #define OUT_OF_FRAME 2
 #define ZERO_DENOMINATOR 3
 
+extern int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
+                    vector<Point2f> &ptsI, vector<Point2f> &ptsJ,
+                    vector<char> &status);
+
 using namespace cv;
 using namespace std;
 
@@ -613,13 +617,17 @@ int main(int argc, char ** argv)
             calcOpticalFlowPyrLK(prev, current, tracking_points[0], tracking_points[1], 
                                  status, err, winSize, 5, termcrit, 0, 0.001);
             
+
+
             //crd2points(x_of, y_of, tracking_points[1].size(),tracking_points[1]);                        
             //get_statistics(x_itp, y_itp, x_of, y_of, maxim, mean,minim,median);
             
             //if (verbose)
             //    cout<<"MAXIMUM: "<<maxim.back()<<",  MINIMUM: "<<minim.back()<<", MEAN: "<<mean.back()<<", MEDIAN: "<<median.back()<<endl;   
 
-            run_LKPyramidal(custom_points[0], custom_points[1], fprev, fcurrent, mystatus,3, 21);
+	    lkpyramidal_gpu(fprev, fcurrent, 3, 21, custom_points[0], custom_points[1], mystatus);
+
+            //run_LKPyramidal(custom_points[0], custom_points[1], fprev, fcurrent, mystatus,3, 21);
             //get_opt_flow(custom_points[0],custom_points[1],fprev, fcurrent, mystatus, 21);
             //swap_xy(custom_points[1]);
             draw_all(input_float,x_truth,y_truth,tracking_points[1],custom_points[1], output_image);

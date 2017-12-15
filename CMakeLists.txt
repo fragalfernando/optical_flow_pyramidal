@@ -20,6 +20,6 @@ include_directories( ${OpenCV_INCLUDE_DIRS} )
 include_directories( ${CUDA_INCLUDE_DIRS} )
 include_directories( include )
 #CUDA_ADD_EXECUTABLE( lkpyramidal.cu )
-CUDA_ADD_EXECUTABLE(test_cuda test_cuda.cpp lkpyramidal.cu)
-target_link_libraries( test_cuda ${CUDA_LIBRARIES} ${OpenCV_LIBS} )
+CUDA_ADD_EXECUTABLE(test_of test_of.cpp lkpyramidal.cu)
+target_link_libraries( test_of ${CUDA_LIBRARIES} ${OpenCV_LIBS} )
 
