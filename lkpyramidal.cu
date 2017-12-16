@@ -264,6 +264,10 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
         ptsJ[i].y = ptsJ_f2[i].y;
     }
     
+    /* Free GPU allocated memory */
+    cudaFree(ptsI_gpu);
+    cudaFree(ptsJ_gpu);
+    cudaFree(status_gpu);
 
     return 0;
 }
