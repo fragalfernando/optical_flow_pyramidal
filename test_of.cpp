@@ -35,13 +35,12 @@
 #define OUT_OF_FRAME 2
 #define ZERO_DENOMINATOR 3
 
-extern int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
-                    vector<Point2f> &ptsI, vector<Point2f> &ptsJ,
-                    vector<char> &status);
-
 using namespace cv;
 using namespace std;
 
+extern int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
+                    vector<Point2f> &ptsI, vector<Point2f> &ptsJ,
+                    vector<char> &status);
 /* Total images*/
 int total_images = 205;
 int keypoints = 18;
@@ -492,21 +491,26 @@ void swap_xy(vector<Point2f> &cords)
 int main(int argc, char ** argv) 
 {
 
-    int first_frame = -1, last_frame = -1;
-    char *video_path = NULL, *out_file = NULL;
+    int first_frame = -1, last_frame = -1, option = 0;
+    char *in_frames_path = NULL, *out_frames_path = NULL,
+         *stats_file = NULL, *cords_file = NULL;
     bool verbose = false;
-    int option = 0;
- 
-    while ((option = getopt(argc, argv,"s:e:f:o:v")) != -1) 
+
+    /* Get input arguments */ 
+    while ((option = getopt(argc, argv,"s:e:p:c:f:o:v")) != -1) 
     {
         switch (option) {
              case 's' : first_frame = atoi(optarg);
                  break;
              case 'e' : last_frame = atoi(optarg);
                  break;
-             case 'f' : video_path = optarg; 
+             case 'p' : in_frames_path = optarg; 
                  break;
-             case 'o' : out_file = optarg;
+             case 'c' : cords_file = optarg;
+                 break;
+             case 'f' : stats_file = optarg;
+                 break;
+             case 'o' : out_frames_path = optarg;
                  break;
              case 'v': verbose = true;
                  break;
@@ -515,32 +519,49 @@ int main(int argc, char ** argv)
         }
     }
 
-    if (first_frame == -1) {cout<<"Invalid first frame argument"<<endl; return 0;}
-    if (last_frame == -1) {cout<<"Invalid last frame argument"<<endl; return 0;}
-    if (!video_path) {cout<<"Specify a video path!"<<endl; return 0;}
-    if (!out_file) {cout<<"Specify results path!"<<endl; return 0;}
+    /* Check mandatory parameters */
+    if (first_frame == -1) {cout<<"Invalid first frame"<<endl; return 0;}
+    if (last_frame == -1) {cout<<"Invalid last frame"<<endl; return 0;}
+    if (!in_frames_path) {cout<<"Specify input frames path!"<<endl; return 0;}
+    if (!cords_file) {cout<<"Specify coordinate log!"<<endl; return 0;}
 
-    /* cout<<"START "<<first_frame<<" END "<<last_frame<<" video path "<<video_path<<" OUT_FILE "<<out_file<<endl;*/
-
+    /* Input frames in CV_8U and float formats */
     Mat input, input_float;
-    
-    freopen(video_path,"r",stdin);
-    Mat prev, current, fprev, fcurrent, dcurrent, dprev;
-    vector<Point2f> tracking_points[2];
+    /* Current and previous frames for tracking. CV_8U and float */
+    Mat prev, current, fprev, fcurrent;
+    /* Tracking points: OpenCV and custom. Index 0: previous frame
+     * Index 1: current frame
+     */       
+    vector<Point2f> opencv_points[2];
     vector<Point2f> custom_points[2];
+    /* String version of paths */
+    string out_frames_path_str = "", in_frames_path_str = "";
+        
+    in_frames_path_str.assign(in_frames_path);
+    
+    if (out_frames_path)
+        out_frames_path_str.assign(out_frames_path);
 
+    /* Redirect input from coordinates file */
+    freopen(cords_file,"r",stdin);
+
+    /* OpenCV tracker parameters */
     TermCriteria termcrit(TermCriteria::COUNT|TermCriteria::EPS,20,0.03);
     Size winSize(21,21);
-    vector<int> x_truth;
-    vector<int> y_truth;
+
+    /* OpenPose x,y keypoints: 'ground_truth' coordinates */
+    vector<int> x_truth, y_truth;
     vector<float> minim, maxim, mean, median;
+    /* Estimated OpenPose points in the current frame with respect
+     * to the original tracking frame
+     */  
     vector<int> x_itp, y_itp;
     vector<float> x_of, y_of;
+    /* Status vectors for Optical Flow */
+    vector<char> custom_status;
+    vector<uchar> opencv_status;
 
     float fx, fy, conf;
-
-    string s_image1 = test_dir + "001" + format_img;
-    string s_image2 = test_dir + "002" + format_img;
 
     for (int i = 0; i < last_frame + 1; i++)
     {
@@ -559,11 +580,11 @@ int main(int argc, char ** argv)
         else number = "00" + temp;
         
         /* Load image */
-        string img = test_dir + number + format_img; 
-        string output_image = output_dir + number + format_img;        
+        string img = in_frames_path_str + number + format_img; 
+        string output_image = out_frames_path_str + number + format_img;        
+        /* Get current frame in both fromats (CV_8U and float) */
         input = cv::imread(img, CV_LOAD_IMAGE_GRAYSCALE);                                      
         input.convertTo(input_float, CV_32F);
-        //input_float *= (1/255.00);
 
         cin>>persons;
         
@@ -576,67 +597,70 @@ int main(int argc, char ** argv)
 	    for (int k = 0; k < keypoints; k++)
 	    {	      	    
 	        cin>>fx>>fy>>conf;
+                /* Keypoints with less than 1% confidence are discarded */
                 if (conf < 0.01)
 	            continue;	
+
                 x_truth.push_back((int)fx);
                 y_truth.push_back((int)fy);
             }
 	}
+
         /* Set tracking points */
         if (i == first_frame)
         {
             fcurrent = input_float.clone();
             current = input;
-            std::cout<<"COLS "<<fcurrent.cols<<"  ROWS: "<<fcurrent.rows<<endl;
-            cv::pyrDown(fcurrent, dcurrent);
-            points2crd(x_truth, y_truth, tracking_points[1]);
+            /* Set initial optical flow points to OpenPose first 
+             * tracking frame
+             */      
+            points2crd(x_truth, y_truth, opencv_points[1]);
             points2crd(x_truth, y_truth, custom_points[1]);
+
             custom_points[0].resize(custom_points[1].size());
+
             x_itp.assign(x_truth.begin(), x_truth.end());
             y_itp.assign(y_truth.begin(), y_truth.end());
             x_of.assign(x_truth.begin(), x_truth.end());
             y_of.assign(y_truth.begin(), y_truth.end());
+
+            custom_status.assign(custom_points[1].size(),0);
+            opencv_status.assign(opencv_points[1].size(),0); 
         } 
-        /* Draw OF keypoint estimates for frames (3,15) */
+        /* Draw OF keypoint estimates for frames (s,e] */
         if (i > first_frame && i < last_frame + 1)
         {
-            vector<uchar> status;
             vector<float> err;
-            vector<char> mystatus(custom_points[0].size());
             
-            std::swap(tracking_points[1], tracking_points[0]);   
+            /* Swap previous and current points and frames */
+            std::swap(opencv_points[1], opencv_points[0]);   
             std::swap(custom_points[1], custom_points[0]);
             cv::swap(fcurrent, fprev);
             cv::swap(current, prev);
 
             fcurrent = input_float.clone();
-            pyrDown(fcurrent, dcurrent);
             current = input;
+            /* Estimate corresponding OpenPose points on the current
+             * frame with respect to the original frame. Used only for 
+             * statistics
+             */       
             interpolate_next(x_itp, y_itp,x_truth, y_truth);
 
-            calcOpticalFlowPyrLK(prev, current, tracking_points[0], tracking_points[1], 
-                                 status, err, winSize, 5, termcrit, 0, 0.001);
+            calcOpticalFlowPyrLK(prev, current, opencv_points[0], 
+                                 opencv_points[1], 
+                                 opencv_status, err, winSize, 5, 
+                                 termcrit, 0, 0.001);
             
-
-
             //crd2points(x_of, y_of, tracking_points[1].size(),tracking_points[1]);                        
             //get_statistics(x_itp, y_itp, x_of, y_of, maxim, mean,minim,median);
             
             //if (verbose)
             //    cout<<"MAXIMUM: "<<maxim.back()<<",  MINIMUM: "<<minim.back()<<", MEAN: "<<mean.back()<<", MEDIAN: "<<median.back()<<endl;   
 
-	    lkpyramidal_gpu(fprev, fcurrent, 3, 21, custom_points[0], custom_points[1], mystatus);
+	    lkpyramidal_gpu(fprev, fcurrent, 3, 21, custom_points[0], custom_points[1], custom_status);
 
             //run_LKPyramidal(custom_points[0], custom_points[1], fprev, fcurrent, mystatus,3, 21);
-            //get_opt_flow(custom_points[0],custom_points[1],fprev, fcurrent, mystatus, 21);
-            //swap_xy(custom_points[1]);
-            draw_all(input_float,x_truth,y_truth,tracking_points[1],custom_points[1], output_image);
-            //swap_xy(custom_points[1]);
-
-            //imwrite(output_dir + number + "_down" + format_img, dcurrent);
-            
-            //draw_both(dcurrent,x_truth,y_truth,keypoints * persons,custom_points[1], "down_" + output_image);
-
+            draw_all(input_float,x_truth,y_truth, opencv_points[1], custom_points[1], output_image);
         }     
         else    
             drawKeyPoints(input_float, x_truth, y_truth,output_image);
