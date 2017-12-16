@@ -641,7 +641,7 @@ int main(int argc, char ** argv)
                        <<median.back()<<endl; 
             }
             
-	    lkpyramidal_gpu(fprev, fcurrent, 3, 21, custom_points[0],    
+	    lkpyramidal_gpu(fprev, fcurrent, 5, 21, custom_points[0],    
                             custom_points[1], custom_status);
 
             //run_LKPyramidal(custom_points[0], custom_points[1], 

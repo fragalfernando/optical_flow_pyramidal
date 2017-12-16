@@ -188,14 +188,9 @@ int lkpyramidal_iteration_gpu (cv::cuda::GpuMat &I, cv::cuda::GpuMat &J,
     int bsize = block_size;
     int nblocks = (npoints + bsize -1) / bsize;
 
-    cout<<"BEFORE KERNEL"<<endl;
-
     /* Launch kernel */ 
     lkpyramid_kernel<<<nblocks,bsize>>>(ptrI,ptrJ,w,h,ptsI,ptsJ,
-                                      npoints,status, patch_size, scale);  
-
-    cout<<"AFTER KERNEL"<<endl;
-    
+                                      npoints,status, patch_size, scale);      
     /* Wait for all cuda threads to finish */
     cudaDeviceSynchronize();
     
@@ -257,7 +252,6 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
     /* Copy points and status back */
     cudaMemcpy(ptsI_f2, ptsI_gpu, pts_size, cudaMemcpyDeviceToHost);
     cudaMemcpy(ptsJ_f2, ptsJ_gpu, pts_size, cudaMemcpyDeviceToHost);
-    cout<<"MY GUESS IS HERE "<<endl;
 
     cudaMemcpy(status.data(),status_gpu, status.size(), cudaMemcpyDeviceToHost);
 
@@ -269,7 +263,7 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
         ptsJ[i].x = ptsJ_f2[i].x;
         ptsJ[i].y = ptsJ_f2[i].y;
     }
-    cout<<"Here ?"<<endl;
+    
 
     return 0;
 }
