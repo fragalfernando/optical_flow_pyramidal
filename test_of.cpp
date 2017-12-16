@@ -26,7 +26,7 @@
 /* When debugging is enabled, these form aliases to useful functions */
 #define dbg_printf(...) printf(__VA_ARGS__); 
 #else
-/* When debugging is disnabled, no code gets generated for these */
+/* When debugging is disabled, no code gets generated for these */
 #define dbg_printf(...)
 #endif
 
@@ -45,13 +45,7 @@ extern int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
 int total_images = 205;
 int keypoints = 18;
 
-/* Image and coordinates directory */
-string test_dir = "./data/";
-string output_dir = "./output/";
 string format_img = ".jpg";
-string coordinates_fname = "output.log";
-
-const char *coordinate_file = "./data/output.log";
 const int op_pixel_threshold = 10; 
 
 
@@ -88,8 +82,10 @@ char compute_lk(vector<float> &ix, vector<float> &iy,
     return SUCCESS;
 }
 
-void get_vectors(vector< vector<float> > &patch, vector< vector<float> > &patch_it,
-                 int patch_size, vector<float> &ix, vector<float> &iy, vector<float> &it)
+void get_vectors(vector< vector<float> > &patch, 
+                 vector< vector<float> > &patch_it,
+                 int patch_size, vector<float> &ix, vector<float> &iy, 
+                 vector<float> &it)
 {
     for (int i = 1; i <= patch_size; i++)
         for (int j = 1; j <= patch_size; j++)
@@ -143,7 +139,8 @@ char extract_it_patch(int x_I, int y_I, int x_J, int y_J, Mat &I, Mat &J,
 
     for (int i = -radix; i <= radix; i++)
         for (int j = -radix; j <= radix; j++)
-            patch[i+radix][j+radix] = J.at<float>(y_J+i,x_J+j) - I.at<float>(y_I+i,x_I+j);
+            patch[i+radix][j+radix] = J.at<float>(y_J+i,x_J+j) - 
+                                      I.at<float>(y_I+i,x_I+j);
 
     return SUCCESS;
 
@@ -326,7 +323,8 @@ void get_opt_flow(vector<Point2f> &coord_in,
 
 }
 
-void drawKeyPoints(Mat image,vector<int> x, vector<int> y, std::string output_file){
+void drawKeyPoints(Mat image,vector<int> x, vector<int> y, 
+                   std::string output_file){
 
     Mat target;
     cv::cvtColor(image, target, CV_GRAY2BGR);
@@ -342,28 +340,10 @@ void drawKeyPoints(Mat image,vector<int> x, vector<int> y, std::string output_fi
     imwrite(output_file, target);
 }
 
-void draw_both(Mat image, vector<int>x, vector<int> y, vector<Point2f> &of, std::string output_file){
 
-    Mat target;
-    cv::cvtColor(image, target, CV_GRAY2BGR);
-
-    for(int i=0;i<x.size();i++)
-    {
-        if (!x[i] && !y[i]) continue;
-
-        Point center = Point(x[i], y[i]);
-
-        cv::circle(target, center, 3, Scalar(255, 0, 0), 1);
-    }
-
-    for (int i = 0; i < of.size(); i++)
-        cv::circle(target,of[i],3,Scalar(0,255,0),1);
-
-    imwrite(output_file, target);
-}
-
-void draw_all(Mat image, vector<int> x, vector<int> y, vector<Point2f> &of, vector<Point2f> &custom, 
-              std::string output_file){
+void draw_all(Mat image, vector<int> x, vector<int> y, vector<Point2f> &of, 
+              vector<Point2f> &custom, std::string output_file)
+{
 
     Mat target;
     cv::cvtColor(image, target, CV_GRAY2BGR);
@@ -464,7 +444,8 @@ void get_statistics(vector<int> &x_itp, vector<int> &y_itp,
         if (x_itp[i] == -1)
             continue;
         
-        dist = (float) (((float)x_itp[i]-x_of[i])*((float)x_itp[i]-x_of[i]) + ((float)y_itp[i]-y_of[i])*((float)y_itp[i]-y_of[i]));        
+        dist = (float) (((float)x_itp[i]-x_of[i])*((float)x_itp[i]-x_of[i]) + 
+                ((float)y_itp[i]-y_of[i])*((float)y_itp[i]-y_of[i]));        
         dist = sqrt(dist);
         distances.push_back(dist);         
     }
@@ -478,16 +459,12 @@ void get_statistics(vector<int> &x_itp, vector<int> &y_itp,
     minim.push_back(distances[0]);
     mean.push_back(total/(float)nk);
 
-    if (n % 2 == 0) median.push_back((distances[nk/2] + distances[nk/2 -1]) / 2.0);
+    if (n % 2 == 0) 
+        median.push_back((distances[nk/2] + distances[nk/2 -1]) / 2.0);
     else median.push_back(distances[nk/2]);
      
 }
 
-void swap_xy(vector<Point2f> &cords)
-{
-    for (int i = 0; i < cords.size(); i++)
-        std::swap(cords[i].x,cords[i].y);
-}
 int main(int argc, char ** argv) 
 {
 
@@ -541,6 +518,7 @@ int main(int argc, char ** argv)
     
     if (out_frames_path)
         out_frames_path_str.assign(out_frames_path);
+    
 
     /* Redirect input from coordinates file */
     freopen(cords_file,"r",stdin);
@@ -644,26 +622,38 @@ int main(int argc, char ** argv)
              * frame with respect to the original frame. Used only for 
              * statistics
              */       
-            interpolate_next(x_itp, y_itp,x_truth, y_truth);
+            interpolate_next(x_itp, y_itp, x_truth, y_truth);
 
             calcOpticalFlowPyrLK(prev, current, opencv_points[0], 
                                  opencv_points[1], 
                                  opencv_status, err, winSize, 5, 
                                  termcrit, 0, 0.001);
             
-            //crd2points(x_of, y_of, tracking_points[1].size(),tracking_points[1]);                        
-            //get_statistics(x_itp, y_itp, x_of, y_of, maxim, mean,minim,median);
+            if (stats_file)
+            {
+                crd2points(x_of, y_of, opencv_points[1]);                         
+                get_statistics(x_itp, y_itp, x_of, y_of, 
+                               maxim, mean,minim,median);
+                
+                if (verbose)
+                   cout<<"MAXIMUM: "<<maxim.back()<<",  MINIMUM: "<<minim.back()
+                       <<", MEAN: "<<mean.back()<<", MEDIAN: "
+                       <<median.back()<<endl; 
+            }
             
-            //if (verbose)
-            //    cout<<"MAXIMUM: "<<maxim.back()<<",  MINIMUM: "<<minim.back()<<", MEAN: "<<mean.back()<<", MEDIAN: "<<median.back()<<endl;   
+	    lkpyramidal_gpu(fprev, fcurrent, 3, 21, custom_points[0],    
+                            custom_points[1], custom_status);
 
-	    lkpyramidal_gpu(fprev, fcurrent, 3, 21, custom_points[0], custom_points[1], custom_status);
-
-            //run_LKPyramidal(custom_points[0], custom_points[1], fprev, fcurrent, mystatus,3, 21);
-            draw_all(input_float,x_truth,y_truth, opencv_points[1], custom_points[1], output_image);
+            //run_LKPyramidal(custom_points[0], custom_points[1], 
+            //fprev, fcurrent, mystatus,3, 21);
+            
+           if (out_frames_path)
+            draw_all(input_float,x_truth,y_truth, opencv_points[1], 
+                     custom_points[1], output_image);
         }     
-        else    
-            drawKeyPoints(input_float, x_truth, y_truth,output_image);
+        else 
+            if (out_frames_path)
+                drawKeyPoints(input_float, x_truth, y_truth,output_image);
     }
     
     return 0;
