@@ -221,15 +221,11 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
     float2 *ptsI_f2 = (float2 *) malloc(pts_size);
     float2 *ptsJ_f2 = (float2 *) malloc(pts_size);
 
-    cout<<"CHECKPOINT 1"<<endl;
-
     for (int i = 0; i < ptsI.size(); i++)
     {
         ptsI_f2[i].x = ptsI[i].x;
         ptsI_f2[i].y = ptsI[i].y;
     }
-
-    cout<<"CHECKPOINT 2"<<endl;
 
     /* Allocate pts on the GPU */
     float2 *ptsI_gpu, *ptsJ_gpu;
@@ -243,10 +239,7 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
     cudaMalloc(&status_gpu, status.size());
     cudaMemcpy(status_gpu, status.data(), status.size(), cudaMemcpyHostToDevice);
 
-    cout<<"CHECKPOINT 3"<<endl;
-
     float scale = 1.0 / (float) (1<<(levels));
-    cout<<"SCALE "<<scale<<endl;
 
     int npoints = ptsI.size();
 
@@ -261,19 +254,16 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
                                    patch_size, npoints, status_gpu,scale); 
     } 
 
-    cout<<"CHECKPOINT 4"<<endl;
-
     /* Copy points and status back */
     cudaMemcpy(ptsI_f2, ptsI_gpu, pts_size, cudaMemcpyDeviceToHost);
     cudaMemcpy(ptsJ_f2, ptsJ_gpu, pts_size, cudaMemcpyDeviceToHost);
     cout<<"MY GUESS IS HERE "<<endl;
 
-    //cudaMemcpy(status_gpu, status.data(), status.size(), cudaMemcpyDeviceToHost);
+    cudaMemcpy(status.data(),status_gpu, status.size(), cudaMemcpyDeviceToHost);
 
     /* Recover Point2f I and J */
     for (int i = 0; i < ptsI.size(); i++)
     {
-        cout<<i<<endl;
         ptsI[i].x = ptsI_f2[i].x;
         ptsI[i].y = ptsI_f2[i].y;
         ptsJ[i].x = ptsJ_f2[i].x;
