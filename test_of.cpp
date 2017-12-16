@@ -625,13 +625,13 @@ int main(int argc, char ** argv)
             y_of.assign(y_truth.begin(), y_truth.end());
 
             custom_status.assign(custom_points[1].size(),0);
-            opencv_status.assign(opencv_points[1].size(),0); 
+            opencv_status.assign(custom_points[1].size(),0); 
         } 
         /* Draw OF keypoint estimates for frames (s,e] */
         if (i > first_frame && i < last_frame + 1)
         {
             vector<float> err;
-            
+
             /* Swap previous and current points and frames */
             std::swap(opencv_points[1], opencv_points[0]);   
             std::swap(custom_points[1], custom_points[0]);
