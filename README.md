@@ -44,6 +44,27 @@ Every time you modify CMakeLists.txt run :
 
 If you modify files, but don't change CMakeLists.txt it is only required to run make.
 
+prefix='Documents/openpose/output_json/video_'
+suffix = '_keypoints.json'
+output_file = './output.log'
+keypoints = 18
+nfiles = 205
+
+
+## Test structure
+To test a particular video. You will first need to get: 
+#1 the JPEG or PNG files of each frame of a video (you can get them with VLC).
+and 
+#2 the OpenPose keypoints as JSON files. To get those run the following using OpenPose (replace VIDEO_NAME and OUTPUT_NAME as required):
+
+    ./build/examples/openpose/openpose.bin --video VIDEO_NAME --write_keypoint_json OUTPUT_NAME --no_display --render_pose 0
+
+Now you need to coalesce the output of all the JSON file into a single TXT file that the tester uses. To do that use  the json2file.py script. Replacing OPEN_POSE_PATH and OUT_FIE_NAME appropiately:
+
+    prefix='OPEN_POSE_PATH/output_json/video_' .
+    suffix = '_keypoints.json'
+    output_file = 'OUT_FILE_NAME'
+
 ## Running the accuracy tester
 
 The following options are provided by the accuracy tester:
