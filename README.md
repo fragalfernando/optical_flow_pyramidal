@@ -58,7 +58,9 @@ The following options are provided by the accuracy tester:
 - **-v**: Verbose. Use it with the -f flag to indicate you want verbose output on the console.
 
 
+For instance  
 
+    ./test_of -s 40 -e 50 -p ./data/ -c ./data/output.log -o ./output/output/ 
 
-
+will run the accuracy tester from frames 40 to 50, using the frames at the ./data/ directory, using the coordinate file ./data/output.log and saving the resulting frames at ./output/output
 
