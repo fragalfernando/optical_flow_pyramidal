@@ -7,8 +7,16 @@
 #include <ctime>
 #include <iostream>
 #include "opencv2/opencv.hpp"
+
+#if CV_VERSION_EPOCH >= 3
 #include "opencv2/cudaimgproc.hpp"
 #include "opencv2/core/cuda.hpp"
+#define GPU_MAT cv::cuda::GpuMat
+
+#else
+#include "opencv2/gpu/gpu.hpp"
+#define GPU_MAT cv::gpu::GpuMat
+#endif
 
 using namespace std;
 using namespace cv;
@@ -125,9 +133,9 @@ __global__ void lkpyramid_kernel (float* I, float *J, int w, int h,
 }
 
 /* Given an OpenCV image 'img', build a gaussian pyramid of size 'levels' */
-void build_gaussian_pyramid_gpu(Mat &img, int levels, vector<cv::cuda::GpuMat> &pyramid)
+void build_gaussian_pyramid_gpu(Mat &img, int levels, vector<GPU_MAT> &pyramid)
 {
-    cv::cuda::GpuMat current;
+    GPU_MAT current;
     pyramid.clear();
 
     current.upload(img);
@@ -135,14 +143,18 @@ void build_gaussian_pyramid_gpu(Mat &img, int levels, vector<cv::cuda::GpuMat> &
 
     for(int i = 0; i < levels - 1; i++)
     {
-        cv::cuda::GpuMat tmp;
+        GPU_MAT tmp;
+        #if CV_VERSION_EPOCH >= 3
         cv::cuda::pyrDown(pyramid[pyramid.size() - 1], tmp);
+        #else
+        cv::gpu::pyrDown(pyramid[pyramid.size() - 1], tmp);
+        #endif
         pyramid.push_back(tmp);
     }
 }
 
 
-void call_bkernel(cv::cuda::GpuMat img, int w, int h)
+void call_bkernel(GPU_MAT img, int w, int h)
 {
     /* Device image */
     float *img_ptr = (float*) img.ptr<float>();
@@ -165,7 +177,7 @@ void call_bkernel(cv::cuda::GpuMat img, int w, int h)
 }
 
 
-int lkpyramidal_iteration_gpu (cv::cuda::GpuMat &I, cv::cuda::GpuMat &J, 
+int lkpyramidal_iteration_gpu (GPU_MAT &I, GPU_MAT &J, 
                                 float2 *ptsI,
                                 float2 *ptsJ, 
                                 int patch_size,
@@ -201,8 +213,9 @@ int lkpyramidal_gpu(cv::Mat &I, cv::Mat &J,int levels, int patch_size,
                     vector<Point2f> &ptsI, vector<Point2f> &ptsJ,
                     vector<char> &status)
 {
-    vector<cv::cuda::GpuMat> pyrI;
-    vector<cv::cuda::GpuMat> pyrJ;
+
+    vector<GPU_MAT> pyrI;
+    vector<GPU_MAT> pyrJ;
 
     /* Allocate ptsJ and initialize */
     ptsJ.clear();
