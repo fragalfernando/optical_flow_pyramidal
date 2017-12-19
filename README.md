@@ -21,3 +21,23 @@ The following files are part of this repository:
 
 </div>
 
+
+## Requirements and compilation
+
+You will need OpenCV installed in your system and OpenCV with CUDA support + CUDA if you are planing to use the GPU version.
+
+To compile the accuracy tester, add the target to CMakeLists.txt:
+
+CUDA_ADD_EXECUTABLE(test_of test_of.cpp lkpyramidal.cu)
+target_link_libraries( test_of ${CUDA_LIBRARIES} ${OpenCV_LIBS} )
+
+Similarly to compile the speed tester:
+
+CUDA_ADD_EXECUTABLE(test_of_speed test_of_speed.cpp lkpyramidal.cu)
+target_link_libraries( test_of_speed ${CUDA_LIBRARIES} ${OpenCV_LIBS} )
+
+
+
+
+
+
