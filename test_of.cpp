@@ -176,14 +176,14 @@ Point2f pyramid_iteration(Point2f ipoint, Point2f jpoint, Mat &I, Mat &J,
 
     status = extract_patch((int)ipoint.x,(int)ipoint.y,
                            patch_size + 2, I, patch);
-    if (status)
-        return result;
+    //if (status)
+    //    return result;
 
     status = extract_it_patch(ipoint.x, ipoint.y, jpoint.x, jpoint.y, I, J,
                               patch_size, patch_it);
  
-    if (status)
-        return result;                         
+    //if (status)
+    //    return result;                         
 
     /* Get the Ix, Iy and It vectors */
     vector<float> ix, iy, it;
@@ -193,8 +193,8 @@ Point2f pyramid_iteration(Point2f ipoint, Point2f jpoint, Mat &I, Mat &J,
     pair<float,float> delta;
     status = compute_lk(ix, iy, it, delta);
     
-    if (status)
-        return result;
+    //if (status)
+    //    return result;
     
     result.x = jpoint.x + delta.first;
     result.y = jpoint.y + delta.second;
@@ -255,7 +255,7 @@ void run_LKPyramidal(vector<Point2f> &coord_I,
 
              result = pyramid_iteration(I[i], coord_J[i],I_pyr[l], J_pyr[l],
                               status_point, patch_size);
-             if (status_point) {status[i] = status_point; break;}
+             if (status_point) {status[i] = status_point;}
 
              coord_J[i] = result;
             
@@ -645,7 +645,7 @@ int main(int argc, char ** argv)
                             custom_points[1], custom_status);
 
             //run_LKPyramidal(custom_points[0], custom_points[1], 
-            //fprev, fcurrent, mystatus,3, 21);
+            //fprev, fcurrent, custom_status,5, 21);
             
            if (out_frames_path)
             draw_all(input_float,x_truth,y_truth, opencv_points[1], 
@@ -655,7 +655,20 @@ int main(int argc, char ** argv)
             if (out_frames_path)
                 drawKeyPoints(input_float, x_truth, y_truth,output_image);
     }
-    
-    return 0;
 
+    if (stats_file)
+    {
+        freopen(stats_file,"w+",stdout);
+
+        /* Dump keypoints */
+        for (int i = 0; i < maxim.size(); i++)
+        {
+            cout<<minim[i]<<endl;
+            cout<<median[i]<<endl;
+            cout<<maxim[i]<<endl;
+            cout<<mean[i]<<endl;
+        }
+    }    
+
+    return 0;
 }

@@ -8,7 +8,7 @@
 #include <iostream>
 #include "opencv2/opencv.hpp"
 
-#if CV_VERSION_EPOCH >= 3
+#if CV_VERSION_MAJOR >= 3
 #include "opencv2/cudaimgproc.hpp"
 #include "opencv2/core/cuda.hpp"
 #define GPU_MAT cv::cuda::GpuMat
@@ -144,7 +144,7 @@ void build_gaussian_pyramid_gpu(Mat &img, int levels, vector<GPU_MAT> &pyramid)
     for(int i = 0; i < levels - 1; i++)
     {
         GPU_MAT tmp;
-        #if CV_VERSION_EPOCH >= 3
+        #if CV_VERSION_MAJOR >= 3
         cv::cuda::pyrDown(pyramid[pyramid.size() - 1], tmp);
         #else
         cv::gpu::pyrDown(pyramid[pyramid.size() - 1], tmp);
