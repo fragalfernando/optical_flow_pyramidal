@@ -5,6 +5,9 @@
 </div>
     This repository includes a CPU and a GPU (NVIDIA) version of the Lucas-Kanade Pyramidal flow algorithm. Besides it provides two test frameworks to test accuracy and performance of both.
     
-     Below.
+
+## Installation, Reinstallation and Uninstallation
+     
+
 </div>
 
