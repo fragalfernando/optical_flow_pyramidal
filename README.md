@@ -122,6 +122,6 @@ After running
 
 You should see a report of the running time for each of the 400 runs, and then the average time taken by each run (excluding the first two to exclude CUDA initializaiton time).
 <div align="center">
-    <img src="doc_images/report.png", width="600">
+    <img src="doc_images/reports.png", width="600">
 </div>
 
