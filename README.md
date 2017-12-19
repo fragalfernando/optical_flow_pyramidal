@@ -51,8 +51,11 @@ keypoints = 18
 nfiles = 205
 
 
-## Test structure
-To test a particular video. You will first need to get: 
+## Generating more data
+
+We provide 4 sample videos to test the implementation, but you can generate more data on your own using the following steps:
+
+To generate new data from a particular video. You will first need to get: 
 #1 the JPEG or PNG files of each frame of a video (you can get them with VLC).
 and 
 #2 the OpenPose keypoints as JSON files. To get those run the following using OpenPose (replace VIDEO_NAME and OUTPUT_NAME as required):
@@ -81,7 +84,11 @@ The following options are provided by the accuracy tester:
 
 For instance  
 
-    ./test_of -s 40 -e 50 -p ./data/ -c ./data/output.log -o ./output/output/ 
+    ./test_of -s 19 -e 29 -p ./boxing/ -c ./boxing/output.log -o ./output/output/ 
 
-will run the accuracy tester from frames 40 to 50, using the frames at the ./data/ directory, using the coordinate file ./data/output.log and saving the resulting frames at ./output/output
+will run the accuracy tester from frames 19 to 29, using the frames at the ./boxing/ directory, using the coordinate file ./boxing/output.log and saving the resulting frames at ./output/output
+
+<div align="center">
+    <img src="doc_images/result1.png", width="450">
+</div>
 
