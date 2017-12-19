@@ -19,7 +19,7 @@ The following files are part of this repository:
 - **CycleTimer.h**: Header file used by the performancee tester.
 - **Test data directories**: ./data. ./boxing, ./street, ./lecture
 - **json2file.py**: .Use it to generaet a conglomerate of all of the JSON keypoints in multiple files into a single file.
-- **json2file.py**: Use it to plot the statistics.txt file results
+- **plot_all.py**: Use it to plot the statistics.txt file results
 
 </div>
 
@@ -88,7 +88,7 @@ Example 1:
 
     ./test_of -s 19 -e 29 -p ./boxing/ -c ./boxing/output.log -o ./output/output/ 
 
-will run the accuracy tester from frames 19 to 29, using the frames at the ./boxing/ directory, using the coordinate file ./boxing/output.log and saving the resulting frames at ./output/output
+will run the accuracy tester from frames 19 to 29, using the frames at the ./boxing/ directory, using the coordinate file ./boxing/output.log and saving the resulting frames at ./output/output (**NOTE** the output directiry **MUST** exist before running the command above).
 
 As explained before, the blue points are the Open Pose points (ground truth), the green points are OpenCV pointss withh LKPyramidal-Iterative tracking and the red points our results.
 
