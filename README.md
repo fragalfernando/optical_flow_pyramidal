@@ -2,7 +2,7 @@
 # Custom optical flow Lucas Kanade Pyramidal
 
 <div align="center">
-    <img src="doc_images/sample2.png", width="300">
+    <img src="doc_images/sample2.png", width="450">
 </div>
 </div>
     This repository includes a CPU and a GPU (NVIDIA) version of the Lucas-Kanade Pyramidal flow algorithm. Besides it provides two test frameworks to test accuracy and performance of both.
