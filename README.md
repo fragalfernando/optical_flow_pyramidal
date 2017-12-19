@@ -37,6 +37,26 @@ Similarly to compile the speed tester:
     CUDA_ADD_EXECUTABLE(test_of test_of.cpp lkpyramidal.cu)
     target_link_libraries( test_of ${CUDA_LIBRARIES} ${OpenCV_LIBS} )
 
+Every time you modify CMakeLists.txt run :
+
+    cmake .
+    make
+
+If you modify files, but don't change CMakeLists.txt it is only required to run make.
+
+## Running the accuracy tester
+
+The following options are provided by the accuracy tester:
+
+
+- **-s (Mandatory)**: Start frame (initial reference frame for the tracker)
+- **-e (Mandatory)**: End frame (last frame where tracker is done)
+- **-p (Mandatory)**: Directory path where the data frames are located.
+- **-c (Mandatory)**: File containing the coordinates of the Open Pose keypoints for each frame
+- **-f**: Stats file. When specified, the tester will calculate statistical measures of the tester in each frame and report them in the file name that goes after the flag.
+- **-o**: Output framespath. When specified, the result frame will be saved showing the OpenPose keypoints (blue), custom LK Pyramidal keypoints (red) and OpenCV keypoints (green).
+- **-v**: Verbose. Use it with the -f flag to indicate you want verbose output on the console.
+
 
 
 
