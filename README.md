@@ -113,3 +113,15 @@ To visualize the statistics per frame using statistics.txt. You can use the plot
 
                 with open("STATS_PATH") as f:
 
+## Running the performance test
+The performance test can be run by just running ./test_of_speed after it has ben compiled. This program uses the lkpyramidal GPU version and runs it 400 times, each time sampling 10,000 points on an image. The results are compared to those in OpenCV (which runs in the GPU as well).
+
+After running
+
+                ./test_of_speed:
+
+You should see a report of the running time for each of the 400 runs, and then the average time taken by each run (excluding the first two to exclude CUDA initializaiton time).
+<div align="center">
+    <img src="doc_images/report.png", width="600">
+</div>
+
