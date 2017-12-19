@@ -98,6 +98,13 @@ Example 2:
 
     ./test_of -s 15 -e 25 -p ./lecture/ -c ./lecture/output.log -f statistics.txt -v
 
+will show the statistics of errors with respect to OpenPose (median, minimum, maximum and mean pixel disances) in the screen and will generate statistics.txt (more on that below).
 <div align="center">
     <img src="doc_images/stats_res.png", width="450">
 </div>
+
+You can compare the OpencV vs OpenPose error and the Custom vs OpenPose error by changing the following line on test_of.cpp for either opencv_points or custom_points.
+
+                crd2points(x_of, y_of, opencv_points[1]);
+
+## Plotting the statistics file 
