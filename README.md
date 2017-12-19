@@ -108,3 +108,8 @@ You can compare the OpencV vs OpenPose error and the Custom vs OpenPose error by
                 crd2points(x_of, y_of, opencv_points[1]);
 
 ## Plotting the statistics file 
+
+To visualize the statistics per frame using statistics.txt. You can use the plot_all.py script. To run it just replace STATS_PATH at the beggining of the file. This will generate graphs.jpeg with the results:
+
+                with open("STATS_PATH") as f:
+
