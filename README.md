@@ -82,13 +82,22 @@ The following options are provided by the accuracy tester:
 - **-v**: Verbose. Use it with the -f flag to indicate you want verbose output on the console.
 
 
-For instance  
+Example 1:  
 
     ./test_of -s 19 -e 29 -p ./boxing/ -c ./boxing/output.log -o ./output/output/ 
 
 will run the accuracy tester from frames 19 to 29, using the frames at the ./boxing/ directory, using the coordinate file ./boxing/output.log and saving the resulting frames at ./output/output
 
+As explained before, the blue points are the Open Pose points (ground truth), the green points are OpenCV pointss withh LKPyramidal-Iterative tracking and the red points our results.
+
 <div align="center">
     <img src="doc_images/result1.png", width="450">
 </div>
 
+Example 2:  
+
+    ./test_of -s 15 -e 25 -p ./lecture/ -c ./lecture/output.log -f statistics.txt -v
+
+<div align="center">
+    <img src="doc_images/stats_res.png", width="450">
+</div>
