@@ -18,6 +18,8 @@ The following files are part of this repository:
 - **CMakeLists.txt**: Edit this to decide what to compile (test_of.cpp or test_of_speed.cpp)
 - **CycleTimer.h**: Header file used by the performancee tester.
 - **Test data directories**: ./data. ./boxing, ./street, ./lecture
+- **json2file.py**: .Use it to generaet a conglomerate of all of the JSON keypoints in multiple files into a single file.
+- **json2file.py**: Use it to plot the statistics.txt file results
 
 </div>
 
